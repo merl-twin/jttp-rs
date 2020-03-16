@@ -112,6 +112,22 @@ impl JttpRequest {
             (_,Err(_)) => Err(Error::Http{ code: code, message: String::from_utf8_lossy(self.request.get_ref().get()).to_string() }),                       
         }
     }
+    pub fn get<R: DeserializeOwned>(&mut self, path: &str) -> Result<R,Error> {
+        self.request.reset();
+        self.request.get_mut().reset();
+        self.request.get(true).map_err(Error::CurlGet)?;
+        let headers = self.prepare_headers()?;
+        self.request.http_headers(headers).map_err(Error::CurlHeaders)?;
+        let url = format!("{}{}",self.url,path);
+        self.request.url(&url).map_err(Error::CurlUrl)?;
+        self.request.perform().map_err(Error::CurlPerformGet)?;
+        let code = self.request.response_code().map_err(Error::CurlCode)?;
+        match (code,serde_json::from_slice(self.request.get_ref().get()).map_err(Error::Json)) {
+            (_,Ok(r)) => Ok(r),
+            (200,Err(e)) => Err(e),
+            (_,Err(_)) => Err(Error::Http{ code: code, message: String::from_utf8_lossy(self.request.get_ref().get()).to_string() }),                       
+        }
+    }
 }
 
 /*
@@ -131,15 +147,6 @@ impl JttpRequest {
                 self.request.url(&url).map_err(Error::CurlUrl)?;
                 self.request.perform().map_err(Error::CurlPerformPut)?;
 
-           
-// GET
-                self.request.reset();
-                self.request.get_mut().reset();
-                self.request.get(true).map_err(Error::CurlGet)?;
-                let mut headers = self.prepare_headers()?;
-                self.request.http_headers(headers).map_err(Error::CurlHeaders)?;
-                let url = format!("{}?param={}",self.url,self.request.url_encode(..));
-                self.request.url(&url).map_err(Error::CurlUrl)?;
-                self.request.perform().map_err(Error::CurlPerformGet)?;
+
  */
 
